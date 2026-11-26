@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>等降价</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f4f1ea; color: #262320; line-height: 1.6; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 20px 14px 40px; }
+  h1 { font-size: 26px; letter-spacing: 1px; }
+  .lead { color: #5e574e; font-size: 14px; margin: 4px 0 14px; }
+  .card { background: #fff; border-radius: 10px; padding: 14px; border: 1px solid #e0d8ca; margin-bottom: 14px; min-width: 0; }
+  .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 8px; overflow-wrap: anywhere; }
+  label { font-size: 12px; color: #5e574e; display: block; overflow-wrap: anywhere; }
+  input { font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid #c9bfae; border-radius: 6px; width: 100%; min-width: 0; background: #fff; font-variant-numeric: tabular-nums; }
+  .top { display: grid; grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, 1fr)); gap: 8px 10px; }
+  .top > div { min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+  .bad { border-color: #b3362b !important; background: #fff0ed !important; }
+  button { font: inherit; font-size: 13px; padding: 6px 11px; border-radius: 6px; border: 1px solid #7a4b14; background: #7a4b14; color: #fff; cursor: pointer; }
+  button.ghost { background: #fff; color: #7a4b14; }
+  button.mini { padding: 2px 8px; font-size: 12px; white-space: nowrap; }
+  button:disabled { opacity: .35; cursor: default; }
+  .presets, .dl { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+  .err { display: none; background: #fff0ed; border: 1px solid #ecb4aa; color: #8e2318; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; overflow-wrap: anywhere; }
+  .muted { color: #7a7268; font-size: 12px; overflow-wrap: anywhere; }
+  /* 价格点：像价签一样一排排 */
+  .ptsHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  #pts { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-top: 8px; }
+  .pt { border: 1px solid #d8c9ad; border-radius: 8px; padding: 8px; background: #fffaf0; display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 4px 6px; position: relative; }
+  .pt .x { position: absolute; top: 2px; right: 4px; border: 0; background: none; color: #a0907a; font-size: 14px; padding: 0 4px; }
+  .pt .x:disabled { opacity: .2; }
+  /* 结论 */
+  .verdict { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .stamp { display: inline-block; border: 3px solid #7a4b14; color: #7a4b14; border-radius: 6px; padding: 0 10px; font-weight: 800; font-size: 20px; white-space: nowrap; transform: rotate(-3deg); }
+  .stamp.now { border-color: #2c6e8a; color: #2c6e8a; }
+  #big { font-size: 15px; overflow-wrap: anywhere; } #big b { font-size: 28px; font-variant-numeric: tabular-nums; }
+  #sumTxt { font-size: 15px; margin-top: 8px; overflow-wrap: anywhere; }
+  #facts { margin: 8px 0 0 18px; font-size: 13px; color: #45403a; } #facts li { margin: 3px 0; overflow-wrap: anywhere; }
+  #curve { display: block; width: 100%; height: 300px; margin-top: 4px; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #5e574e; margin-top: 4px; }
+  .legend i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
+  .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tl { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+  .tl th, .tl td { padding: 5px 6px; border-bottom: 1px solid #efe8dc; text-align: right; white-space: nowrap; }
+  .tl th:last-child, .tl td:last-child { text-align: left; }
+  .tl th { font-size: 12px; color: #5e574e; font-weight: 600; white-space: normal; min-width: 4.5em; }
+  .tl tr.best td { background: #fbf1df; font-weight: 700; }
+  .tl tr.plan td:first-child { box-shadow: inset 3px 0 0 #2c6e8a; }
+  .tl td.neg { color: #b3362b; } .tl td.pos { color: #2c7a4b; }
+  .tl tr { cursor: pointer; }
+  #wi { margin: 4px 0 0 18px; font-size: 13px; color: #45403a; } #wi li { margin: 3px 0; overflow-wrap: anywhere; }
+  #sugs { display: grid; gap: 8px; }
+  .sug { display: flex; gap: 10px; align-items: center; justify-content: space-between; border: 1px dashed #d8c9ad; border-radius: 8px; padding: 8px 10px; }
+  .sug span { font-size: 13px; overflow-wrap: anywhere; min-width: 0; }
+  .sug button { flex: none; }
+  .foot { font-size: 12px; color: #7a7268; margin-top: 10px; overflow-wrap: anywhere; }
+  @media (max-width: 640px) {
+    h1 { font-size: 22px; }
+    .top { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .top > div:first-child { grid-column: 1 / -1; }
+    #pts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    #big b { font-size: 24px; }
+    #curve { height: 240px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>等降价</h1>
+  <p class="lead">想买的东西刚出、价格还会往下走：填现在多少钱、你估以后几个月大概多少钱，再填「晚拿到一个月你觉得亏多少」。逐月算一遍，告诉你等几个月最划算，你打算的那个月是省是亏。</p>
+
+  <div class="card">
+    <h2>这件东西</h2>
+    <div class="top">
+      <div><label for="what">是什么（可空）</label><input id="what" maxlength="40"></div>
+      <div><label for="now">现在的价格（元）</label><input id="now" inputmode="decimal" maxlength="12"></div>
+      <div><label for="perMonth">晚拿到一个月亏多少（元）</label><input id="perMonth" inputmode="decimal" maxlength="10"></div>
+      <div><label for="oldDrop">旧的那台每月掉价（元，可空）</label><input id="oldDrop" inputmode="decimal" maxlength="10"></div>
+      <div><label for="plan">你打算等几个月</label><input id="plan" inputmode="numeric" maxlength="3"></div>
+    </div>
+    <p class="muted" style="margin-top:6px">「晚拿到一个月亏多少」是你自己的估价：早用上能省下的租金、打车、时间，或者单纯想早点用的那份心情，值多少钱就填多少；完全不急填 0。「旧的那台每月掉价」：要卖旧的换新时，旧的每多放一个月少卖的钱。</p>
+    <div class="ptsHead"><b style="font-size:14px">你估的以后价格（第几个月 → 多少钱），中间的月份按直线连起来</b><button class="ghost mini" id="add">＋ 加一个价格点</button></div>
+    <div id="pts"></div>
+    <div class="presets" id="presets"></div>
+    <div class="presets"><button class="ghost" id="reset">恢复默认</button></div>
+  </div>
+
+  <div class="err" id="error"></div>
+
+  <div id="out">
+    <div class="card">
+      <div class="verdict"><span class="stamp" id="stamp"></span><div id="big"></div></div>
+      <p id="sumTxt"></p>
+      <ul id="facts"></ul>
+    </div>
+    <div class="card">
+      <h2>价格往下走，等的代价往上涨</h2>
+      <canvas id="curve"></canvas>
+      <div class="legend"><span><i style="background:#7a4b14"></i>少花的钱</span><span><i style="background:#2c6e8a"></i>等的代价（晚拿到 + 旧的掉价）</span><span><i style="background:#e8c98f;height:10px"></i>两条线之间 = 净省</span></div>
+    </div>
+    <div class="card">
+      <h2>逐月一行（点一行 = 把打算改成那个月）</h2>
+      <div class="scroll"><table class="tl" id="tl"></table></div>
+    </div>
+    <div class="card">
+      <h2>要是我估错了</h2>
+      <ul id="wi"></ul>
+    </div>
+    <div class="card" id="sugCard">
+      <h2>可以改的（点「代回」直接改上面的打算）</h2>
+      <div id="sugs"></div>
+    </div>
+    <div class="card">
+      <h2>拿走结果</h2>
+      <div class="dl" style="margin-top:0"><button id="dlPNG">结果卡 PNG</button><button class="ghost" id="dlCSV">逐月表 CSV</button><button class="ghost" id="dlMD">Markdown</button><button class="ghost" id="dlJSON">JSON 备份</button></div>
+      <p class="foot">价格是你自己估的，本页不预测任何商品的真实价格；中间月份按直线连，没算利息、以旧换新补贴、到时候缺货或出了下一代。默认数据为虚构示例。填的内容只存在本机浏览器。</p>
+    </div>
+  </div>
+</div>
+
+  <script>
+/* 等降价 · 计算核心（纯函数，Node 与浏览器共用）
+ * 一样东西刚出、价格还会往下走：现在买，还是等几个月再买？
+ * 少花的钱 = 现在价 − 那时价；等的代价 = 月数 × （晚拿到一个月你觉得亏多少 + 旧的那台每月掉价）。
+ * 金额全部按「分」存成整数；中间月份按你估的价位点直线插值，四舍五入到分。 */
+(function (root) {
+  'use strict';
+  const MAX_POINTS = 8;
+  const MAX_MONTH = 36;
+  const MAX_PRICE = 10000000;   // 元
+  const MAX_MONTHLY = 1000000;  // 元/月
+
+  class InputError extends Error { constructor(msg, field) { super(msg); this.field = field; } }
+
+  function fmtInt(n) { return Number(n).toLocaleString('en-US'); }
+  /* 分 → 元文本（整元不带小数），负数用 − */
+  function yuan(c) { const neg = c < 0; c = Math.abs(c); const s = fmtInt(Math.floor(c / 100)) + (c % 100 ? '.' + String(c % 100).padStart(2, '0') : ''); return (neg ? '−' : '') + s; }
+  function signed(c) { return (c > 0 ? '+' : '') + yuan(c); }
+
+  function money(s, field, label, { max, min0 = false, optional = false } = {}) {
+    const t = String(s == null ? '' : s).trim().replace(/,/g, '');
+    if (!t) { if (optional) return 0; throw new InputError(label + '没填', field); }
+    if (!/^\d+(\.\d+)?$/.test(t)) throw new InputError(label + '只能填数字', field);
+    if (/\.\d{3,}$/.test(t)) throw new InputError(label + '最多 2 位小数', field);
+    const v = Math.round(parseFloat(t) * 100);
+    if (!min0 && v <= 0) throw new InputError(label + '要大于 0', field);
+    if (v > max * 100) throw new InputError(label + '最多 ' + fmtInt(max) + ' 元', field);
+    return v;
+  }
+  function month(s, field, label, { min = 1, max = MAX_MONTH } = {}) {
+    const t = String(s == null ? '' : s).trim();
+    if (!t) throw new InputError(label + '没填', field);
+    if (!/^\d+$/.test(t)) throw new InputError(label + '要填整数个月', field);
+    const v = +t;
+    if (v < min) throw new InputError(label + '至少 ' + min + ' 个月', field);
+    if (v > max) throw new InputError(label + '最多 ' + max + ' 个月', field);
+    return v;
+  }
+
+  const KEYS = ['what', 'now', 'perMonth', 'oldDrop', 'plan'];
+  const PKEYS = ['m', 'price'];
+
+  function parse(s) {
+    if (!s || typeof s !== 'object') throw new InputError('数据坏了', 'now');
+    const what = String(s.what == null ? '' : s.what);
+    if (what.length > 30) throw new InputError('东西的名字最多 30 个字', 'what');
+    const now = money(s.now, 'now', '现在的价格', { max: MAX_PRICE });
+    if (!Array.isArray(s.points) || !s.points.length) throw new InputError('至少估一个以后的价格', 'points');
+    if (s.points.length > MAX_POINTS) throw new InputError('最多估 ' + MAX_POINTS + ' 个价格点', 'points');
+    let prev = 0;
+    const points = s.points.map((p, i) => {
+      if (!p || typeof p !== 'object') throw new InputError('数据坏了', 'pt' + i + '-m');
+      const no = '第 ' + (i + 1) + ' 个价格点的';
+      const m = month(p.m, 'pt' + i + '-m', no + '月数');
+      if (m <= prev) throw new InputError(no + '月数要比上一个大（现在算第 0 个月）', 'pt' + i + '-m');
+      prev = m;
+      const price = money(p.price, 'pt' + i + '-price', no + '价格', { max: MAX_PRICE });
+      return { m, price };
+    });
+    const perMonth = money(s.perMonth, 'perMonth', '晚拿到一个月亏多少', { max: MAX_MONTHLY, min0: true });
+    const oldDrop = money(s.oldDrop, 'oldDrop', '旧的那台每月掉价', { max: MAX_MONTHLY, min0: true, optional: true });
+    const H = points[points.length - 1].m;
+    const plan = month(s.plan, 'plan', '你打算等几个月', { min: 0, max: MAX_MONTH });
+    if (plan > H) throw new InputError('你打算等 ' + plan + ' 个月，但最后一个价格点只估到第 ' + H + ' 个月，先把价格估到那个月', 'plan');
+    return { what, now, points, perMonth, oldDrop, plan, H };
+  }
+
+  /* 第 m 个月的价格：在相邻两个价格点之间走直线，四舍五入到分。
+   * Pa·(b−m) + Pb·(m−a) 恒 ≥ 0，所以用整数的「加一半再整除」就是四舍五入。 */
+  function priceAt(D, m) {
+    if (m === 0) return D.now;
+    let a = 0, Pa = D.now;
+    for (const p of D.points) {
+      if (m === p.m) return p.price;
+      if (m < p.m) {
+        const den = p.m - a, num = Pa * (p.m - m) + p.price * (m - a);
+        return Math.floor((2 * num + den) / (2 * den));
+      }
+      a = p.m; Pa = p.price;
+    }
+    throw new Error('month out of range');
+  }
+
+  /* 每个月一行：那时价、少花、晚拿的代价、旧的掉价、净（比现在买多省多少） */
+  function table(D, perMonth, oldDrop, scale) {
+    const rows = [];
+    for (let m = 0; m <= D.H; m++) {
+      let price = priceAt(D, m);
+      /* 「降幅打几折」：只缩放少花的那部分；scale 是百分数整数，四舍五入到分 */
+      if (scale != null && scale !== 100) price = D.now - Math.round((D.now - price) * scale / 100);
+      const save = D.now - price, wait = m * perMonth, old = m * oldDrop;
+      rows.push({ m, price, save, wait, old, net: save - wait - old });
+    }
+    return rows;
+  }
+  /* 净最大的那个月；一样大取更早的（能早拿到就早拿到） */
+  function bestOf(rows) { let b = rows[0]; for (const r of rows) if (r.net > b.net) b = r; return b; }
+  function cheapestOf(rows) { let b = rows[0]; for (const r of rows) if (r.price < b.price) b = r; return b; }
+
+  /* 「每月亏不到多少才值得等」：在第 m 个月等着比现在买划算 ⇔ perMonth < save(m)/m − oldDrop。
+   * 金额是整分，所以门槛取 ceil(save/m − oldDrop)（分）后「严格少于」就精确。返回最大门槛与对应月数。 */
+  function threshold(D, oldDrop) {
+    let best = null;
+    for (let m = 1; m <= D.H; m++) {
+      const save = D.now - priceAt(D, m);
+      const num = save - m * oldDrop;               // 门槛 = num / m
+      if (num <= 0) continue;
+      const c = Math.ceil(num / m);
+      /* 比较有理数 num/m 的大小，用交叉相乘，不比取整后的 */
+      if (!best || num * best.m > best.num * m) best = { m, num, cents: c };
+    }
+    return best;
+  }
+
+  const SCALES = [50, 70, 100, 130];
+  const PM_MULTS = [50, 200];
+
+  function calculate(s) {
+    const D = parse(s);
+    const rows = table(D, D.perMonth, D.oldDrop);
+    const best = bestOf(rows), cheap = cheapestOf(rows), plan = rows[D.plan];
+    const th = threshold(D, D.oldDrop);
+    const what = D.what || '它';
+    /* 要是我估错了：降幅打折 / 每月亏的多少翻倍减半 */
+    const what_if = SCALES.filter((k) => k !== 100).map((k) => { const R = table(D, D.perMonth, D.oldDrop, k); const b = bestOf(R); return { kind: 'scale', k, best: b.m, net: b.net, planNet: R[D.plan].net }; })
+      .concat(PM_MULTS.map((k) => { const pm = Math.round(D.perMonth * k / 100); const R = table(D, pm, D.oldDrop); const b = bestOf(R); return { kind: 'pm', k, perMonth: pm, best: b.m, net: b.net, planNet: R[D.plan].net }; }));
+    const verdict = best.m === 0 ? 'now' : 'wait';
+    const stamp = best.m === 0 ? '现在就买' : '等 ' + best.m + ' 个月';
+    const gap = best.net - plan.net;
+    let summary;
+    if (best.m === 0) summary = '按你估的降价和「晚拿到一个月亏 ' + yuan(D.perMonth) + ' 元」，往后哪个月买都不如现在买：等得越久，省下的钱追不上等的代价。';
+    else summary = '最划算是等 ' + best.m + ' 个月再买：那时约 ' + yuan(best.price) + ' 元，少花 ' + yuan(best.save) + ' 元，扣掉等的代价 ' + yuan(best.wait + best.old) + ' 元，比现在买净省 ' + yuan(best.net) + ' 元。';
+    const facts = [];
+    if (D.plan === best.m) facts.push('你打算等 ' + D.plan + ' 个月，正好是最划算的那个月。');
+    else facts.push('你打算' + (D.plan === 0 ? '现在就买' : '等 ' + D.plan + ' 个月') + '：比现在买' + (plan.net >= 0 ? '净省 ' + yuan(plan.net) : '倒亏 ' + yuan(-plan.net)) + ' 元，比最划算的少 ' + yuan(gap) + ' 元。');
+    if (cheap.m !== best.m) facts.push('最便宜在第 ' + cheap.m + ' 个月（约 ' + yuan(cheap.price) + ' 元），但等到那时代价 ' + yuan(cheap.wait + cheap.old) + ' 元，净 ' + signed(cheap.net) + ' 元，不如' + (best.m ? '第 ' + best.m + ' 个月' : '现在就买') + '。');
+    if (th) facts.push('晚拿到一个月你觉得亏的钱少于 ' + yuan(th.cents) + ' 元，才有哪个月等着比现在买划算（这个数来自等 ' + th.m + ' 个月那一行）；你填的是 ' + yuan(D.perMonth) + ' 元。');
+    else facts.push('你估的价格往后没有比现在便宜到能抵掉旧的掉价，哪怕晚拿到一个月不亏钱，等着也不划算。');
+    if (D.oldDrop) facts.push('等的代价里有旧的那台每月掉价 ' + yuan(D.oldDrop) + ' 元，' + (best.m ? '等 ' + best.m + ' 个月共 ' + yuan(best.old) + ' 元。' : '不等就不用算。'));
+    return { D, rows, best, cheap, plan, th, what_if, verdict, stamp, summary, facts, gap, what };
+  }
+
+  /* 建议：都直接改「你打算等几个月」，代回后能看到结果变化 */
+  function suggestions(s, R) {
+    const out = [];
+    const seen = new Set([R.D.plan]);
+    const add = (id, m, text) => { if (seen.has(m)) return; seen.add(m); const apply = JSON.parse(JSON.stringify(s)); apply.plan = String(m); out.push({ id, text, apply, R2: calculate(apply) }); };
+    add('best', R.best.m, R.best.m === 0 ? '改成现在就买：比你现在的打算多省 ' + yuan(R.gap) + ' 元。' : '改成等 ' + R.best.m + ' 个月：比你现在的打算多省 ' + yuan(R.gap) + ' 元。');
+    if (R.plan.net < 0) add('now', 0, '改成现在就买：你的打算比现在买倒亏 ' + yuan(-R.plan.net) + ' 元，现在买至少不亏。');
+    add('cheap', R.cheap.m, '等到最便宜的第 ' + R.cheap.m + ' 个月：价格最低，但净 ' + signed(R.cheap.net) + ' 元，看看差在哪。');
+    return out;
+  }
+
+  const HEAD = ['第几个月', '那时价格（元）', '少花（元）', '晚拿到的代价（元）', '旧的掉价（元）', '比现在买净省（元）', ''];
+  function tableRows(R) {
+    return R.rows.map((r) => [r.m === 0 ? '现在' : String(r.m), yuan(r.price), yuan(r.save), yuan(r.wait), yuan(r.old), signed(r.net),
+      [r.m === R.best.m ? '最划算' : '', r.m === R.D.plan ? '你的打算' : '', r.m === R.cheap.m && r.m !== R.best.m ? '最便宜' : '', R.D.points.some((p) => p.m === r.m) ? '你估的' : ''].filter(Boolean).join('·')]);
+  }
+  function whatIfText(R) {
+    return R.what_if.map((w) => (w.kind === 'scale' ? '降幅只有你估的 ' + w.k + '%' : w.k === 50 ? '晚拿到一个月只亏一半（' + yuan(w.perMonth) + ' 元）' : '晚拿到一个月亏两倍（' + yuan(w.perMonth) + ' 元）')
+      + '：' + (w.best === 0 ? '现在就买' : '等 ' + w.best + ' 个月') + '，净 ' + signed(w.net) + ' 元；你的打算 ' + signed(w.planNet) + ' 元');
+  }
+  const csvCell = (v) => { const t = String(v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  function toCSV(R, when) {
+    const D = R.D, L = [];
+    L.push(['等降价', '生成 ' + when, '默认数据为虚构示例'].map(csvCell).join(','));
+    L.push(['东西', D.what, '现在价格', yuan(D.now), '晚拿到一个月亏', yuan(D.perMonth), '旧的每月掉价', yuan(D.oldDrop), '打算等', D.plan + ' 个月'].map(csvCell).join(','));
+    L.push(HEAD.slice(0, 6).concat(['备注']).map(csvCell).join(','));
+    tableRows(R).forEach((r) => L.push(r.map(csvCell).join(',')));
+    L.push(['结论', R.stamp, R.summary].map(csvCell).join(','));
+    return L.join('\n') + '\n';
+  }
+  function toMD(R, when, sg) {
+    const D = R.D, L = [];
+    L.push('# 等降价' + (D.what ? ' · ' + D.what : ''), '', '生成时间：' + when + '　默认数据为虚构示例', '');
+    L.push('**' + R.stamp + '**：' + R.summary, '');
+    R.facts.forEach((f) => L.push('- ' + f));
+    L.push('', '| ' + HEAD.slice(0, 6).concat(['备注']).join(' | ') + ' |', '|' + HEAD.map(() => '---').join('|') + '|');
+    tableRows(R).forEach((r) => L.push('| ' + r.map((x) => String(x).replace(/\|/g, '/')).join(' | ') + ' |'));
+    L.push('', '## 要是我估错了', '');
+    whatIfText(R).forEach((t) => L.push('- ' + t));
+    if (sg && sg.length) { L.push('', '## 可以改的', ''); sg.forEach((s) => L.push('- ' + s.text)); }
+    L.push('', '价格是你自己估的，不预测任何商品的真实价格；没算利息、以旧换新补贴和到时候缺货。');
+    return L.join('\n') + '\n';
+  }
+
+  const DEFAULT = { what: '新出的手机', now: '7999', perMonth: '250', oldDrop: '50', plan: '6',
+    points: [{ m: '1', price: '7599' }, { m: '3', price: '6899' }, { m: '6', price: '6299' }, { m: '12', price: '5699' }] };
+  const PRESETS = [
+    ['新手机（默认）', DEFAULT],
+    ['首发被炒高的游戏机', { what: '游戏机', now: '4299', perMonth: '150', oldDrop: '', plan: '1',
+      points: [{ m: '1', price: '4199' }, { m: '2', price: '3699' }, { m: '4', price: '3599' }, { m: '10', price: '3299' }] }],
+    ['不急用的扫地机', { what: '扫地机', now: '3299', perMonth: '0', oldDrop: '', plan: '2',
+      points: [{ m: '2', price: '2999' }, { m: '5', price: '2599' }, { m: '7', price: '2799' }] }],
+    ['天天要用的电脑', { what: '工作用笔记本', now: '9999', perMonth: '600', oldDrop: '120', plan: '3',
+      points: [{ m: '2', price: '9499' }, { m: '6', price: '8799' }] }],
+  ];
+
+  const API = { MAX_POINTS, MAX_MONTH, KEYS, PKEYS, DEFAULT, PRESETS, SCALES, PM_MULTS, InputError, parse, priceAt, table, bestOf, cheapestOf, threshold, calculate, suggestions, toCSV, toMD, tableRows, whatIfText, HEAD, yuan, signed, fmtInt };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  else root.AppCore = API;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+  </script>
+  <script>
+/* 等降价 · 界面层 */
+(function () {
+  'use strict';
+  const C = window.AppCore;
+  const KEY = 'wait-for-drop:v1';
+  const NAME = '等降价';
+  const copy = (o) => JSON.parse(JSON.stringify(o));
+  const { DEFAULT, PRESETS, KEYS, PKEYS, yuan, signed } = C;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const FF = '"PingFang SC","Microsoft YaHei",sans-serif';
+  let state = copy(DEFAULT);
+  let last = null;
+
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* 隐私模式忽略 */ } }
+  function load() {
+    try {
+      const o = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+      const s = {};
+      for (const k of KEYS) { if (o[k] != null && typeof o[k] === 'object') return null; s[k] = o[k] == null ? '' : String(o[k]).slice(0, 40); }
+      if (!Array.isArray(o.points) || !o.points.length || o.points.length > C.MAX_POINTS) return null;
+      s.points = o.points.map((p) => {
+        if (!p || typeof p !== 'object' || Array.isArray(p)) throw new Error('bad');
+        const r = {}; for (const k of PKEYS) { if (typeof p[k] === 'object' && p[k] !== null) throw new Error('bad'); r[k] = p[k] == null ? '' : String(p[k]).slice(0, 12); }
+        return r;
+      });
+      return s;
+    } catch (e) { return null; }
+  }
+
+  function ptHTML(p, i, n) {
+    const id = (k) => 'pt' + i + '-' + k;
+    return '<div class="pt" data-i="' + i + '"><button class="x" data-op="del" title="删掉这个价格点"' + (n === 1 ? ' disabled' : '') + '>✕</button>' +
+      '<div><label for="' + id('m') + '">第几个月</label><input id="' + id('m') + '" data-k="m" inputmode="numeric" maxlength="3" value="' + esc(p.m) + '"></div>' +
+      '<div><label for="' + id('price') + '">大概多少钱</label><input id="' + id('price') + '" data-k="price" inputmode="decimal" maxlength="12" value="' + esc(p.price) + '"></div></div>';
+  }
+  function renderPts() {
+    const n = state.points.length;
+    $('pts').innerHTML = state.points.map((p, i) => ptHTML(p, i, n)).join('');
+    $('add').disabled = n >= C.MAX_POINTS;
+  }
+  function fill() { KEYS.forEach((k) => { $(k).value = state[k]; }); renderPts(); }
+
+  function bigText(R) {
+    if (R.verdict === 'now') return '现在买，<b>' + yuan(R.D.now) + '</b> 元';
+    return '第 ' + R.best.m + ' 个月买，净省 <b>' + yuan(R.best.net) + '</b> 元';
+  }
+  const plain = (h) => h.replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+  function tlHTML(R) {
+    const head = '<tr>' + C.HEAD.map((h) => '<th>' + esc(h) + '</th>').join('') + '</tr>';
+    return head + C.tableRows(R).map((r, k) => {
+      const x = R.rows[k];
+      const cls = [x.m === R.best.m ? 'best' : '', x.m === R.D.plan ? 'plan' : ''].filter(Boolean).join(' ');
+      return '<tr data-m="' + x.m + '" class="' + cls + '">' + r.map((v, j) => '<td' + (j === 5 ? ' class="' + (x.net < 0 ? 'neg' : x.net > 0 ? 'pos' : '') + '"' : '') + '>' + esc(v) + '</td>').join('') + '</tr>';
+    }).join('');
+  }
+
+  /* 曲线：横轴月份，纵轴钱；少花（棕）与等的代价（蓝），两线之间净省的那段填色 */
+  function short(c) {
+    const a = Math.abs(c) / 100, s = c < 0 ? '−' : '';
+    if (a >= 1e8) return s + (Math.round(a / 1e6) / 100) + '亿';
+    if (a >= 1e4) return s + (Math.round(a / 100) / 100) + '万';
+    return s + C.fmtInt(Math.round(a));
+  }
+  function drawCurve(g, R, W, H, fs) {
+    const rows = R.rows, N = R.D.H;
+    const cost = rows.map((r) => r.wait + r.old), sv = rows.map((r) => r.save);
+    let hi = Math.max(1, ...sv, ...cost), lo = Math.min(0, ...sv);
+    g.font = fs + 'px ' + FF;
+    const lw = Math.max(g.measureText(short(hi)).width, g.measureText(short(lo)).width) + 10;
+    const x0 = lw, x1 = W - 10, top = fs + 8, bot = H - fs * 2 - 10;
+    const xm = (m) => x0 + (x1 - x0) * (N ? m / N : 0), yv = (v) => bot - (bot - top) * (v - lo) / (hi - lo);
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+    /* 纵轴刻度 4 档 */
+    g.textAlign = 'right'; g.textBaseline = 'middle';
+    for (let k = 0; k <= 4; k++) {
+      const v = lo + (hi - lo) * k / 4, y = yv(v);
+      g.strokeStyle = '#f1ece3'; g.lineWidth = 1; g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y); g.stroke();
+      g.fillStyle = '#7a7268'; g.textBaseline = k === 0 ? 'bottom' : 'middle'; g.fillText(short(Math.round(v)), x0 - 6, k === 0 ? y - 2 : y);
+    }
+    /* 横轴：月份，按宽度抽稀 */
+    g.textAlign = 'center'; g.textBaseline = 'top';
+    const step = Math.max(1, Math.ceil(N / Math.max(1, Math.floor((x1 - x0) / (fs * 4.2)))));
+    for (let m = 0; m <= N; m += step) { g.fillStyle = '#7a7268'; const t = m === 0 ? '现在' : m + '个月', tw = g.measureText(t).width; g.textAlign = 'left'; g.fillText(t, Math.max(2, Math.min(W - tw - 2, m === 0 ? xm(0) + 2 : xm(m) - tw / 2)), bot + 4); }
+    g.textAlign = 'center';
+    /* 净省的段：逐月梯形，只填 save > cost 的部分（线性段内按交点切开） */
+    g.fillStyle = 'rgba(232,201,143,.75)';
+    for (let m = 0; m < N; m++) {
+      const d0 = sv[m] - cost[m], d1 = sv[m + 1] - cost[m + 1];
+      if (d0 <= 0 && d1 <= 0) continue;
+      let a = m, b = m + 1;
+      if (d0 < 0) a = m + d0 / (d0 - d1); if (d1 < 0) b = m + d0 / (d0 - d1);
+      const at = (arr, t) => { const i = Math.min(N - 1, Math.floor(t)); return arr[i] + (arr[i + 1] - arr[i]) * (t - i); };
+      g.beginPath(); g.moveTo(xm(a), yv(at(sv, a))); g.lineTo(xm(b), yv(at(sv, b))); g.lineTo(xm(b), yv(at(cost, b))); g.lineTo(xm(a), yv(at(cost, a))); g.closePath(); g.fill();
+    }
+    const line = (arr, col) => { g.strokeStyle = col; g.lineWidth = 2.5; g.beginPath(); arr.forEach((v, m) => (m ? g.lineTo(xm(m), yv(v)) : g.moveTo(xm(m), yv(v)))); g.stroke(); };
+    line(sv, '#7a4b14'); line(cost, '#2c6e8a');
+    /* 你估的价格点：小圆点 */
+    g.fillStyle = '#7a4b14';
+    R.D.points.forEach((p) => { g.beginPath(); g.arc(xm(p.m), yv(sv[p.m]), 3.5, 0, 7); g.fill(); });
+    /* 最划算与你的打算：竖线 + 标签（两条线离太近时上下错开） */
+    const mark = (m, col, txt, row) => {
+      const x = xm(m); g.strokeStyle = col; g.lineWidth = 1.5; g.setLineDash([4, 3]); g.beginPath(); g.moveTo(x, top); g.lineTo(x, bot); g.stroke(); g.setLineDash([]);
+      g.font = 'bold ' + fs + 'px ' + FF; g.fillStyle = col; g.textBaseline = 'top';
+      const tw = g.measureText(txt).width; let tx = x + 4; if (tx + tw > W - 2) tx = x - 4 - tw; if (tx < 2) tx = 2;
+      g.textAlign = 'left'; g.fillText(txt, tx, row ? bot + fs + 8 : 2);
+    };
+    mark(R.best.m, '#7a4b14', '最划算：' + (R.best.m ? '第 ' + R.best.m + ' 个月' : '现在'), 0);
+    if (R.D.plan !== R.best.m) mark(R.D.plan, '#2c6e8a', '你的打算：' + (R.D.plan ? '第 ' + R.D.plan + ' 个月' : '现在'), 1);
+    g.textAlign = 'left'; g.textBaseline = 'alphabetic';
+  }
+  function renderCurve(R) {
+    const cv = $('curve'), dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    const g = cv.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawCurve(g, R, W, H, W < 500 ? 11 : 12);
+  }
+  function sugList(sg) {
+    $('sugCard').style.display = sg.length ? '' : 'none';
+    $('sugs').innerHTML = sg.map((s, k) => '<div class="sug"><span>' + esc(s.text) + '</span><button class="ghost" data-sug="' + s.id + '" data-k="' + k + '">代回</button></div>').join('');
+    [].forEach.call($('sugs').querySelectorAll('button'), (b) => b.addEventListener('click', () => { state = copy(sg[+b.dataset.k].apply); fill(); run(); }));
+  }
+
+  function run() {
+    document.querySelectorAll('.bad').forEach((el) => el.classList.remove('bad'));
+    $('error').style.display = 'none';
+    try {
+      const R = C.calculate(state);
+      const sg = C.suggestions(state, R);
+      $('out').style.display = '';
+      $('stamp').textContent = R.stamp; $('stamp').className = 'stamp ' + R.verdict;
+      $('big').innerHTML = bigText(R);
+      $('sumTxt').textContent = R.summary;
+      $('facts').innerHTML = R.facts.map((f) => '<li>' + esc(f) + '</li>').join('');
+      $('tl').innerHTML = tlHTML(R);
+      $('wi').innerHTML = C.whatIfText(R).map((t) => '<li>' + esc(t) + '</li>').join('');
+      last = { r: R, sg };
+      renderCurve(R); sugList(sg);
+    } catch (e) {
+      last = null;
+      if (e.field) { const el = $(e.field); if (el) el.classList.add('bad'); }
+      $('error').textContent = '算不了：' + e.message; $('error').style.display = 'block';
+      $('out').style.display = 'none';
+    }
+    save();
+  }
+
+  /* ── 导出 ── */
+  function stamp() { const d = new Date(), z = (n) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + z(d.getMonth() + 1) + '-' + z(d.getDate()) + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
+  function download(name, blob) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); }
+  function fit(g, t, w) { let s = String(t); if (g.measureText(s).width <= w) return s; while (s.length > 1 && g.measureText(s + '…').width > w) s = s.slice(0, -1); return s + '…'; }
+  function wrap(g, t, w) {
+    const NOHEAD = '，。、；：！？）」』”%·→｜';
+    const out = []; let line = [];
+    const toks = String(t).match(/[−+-]?[0-9][0-9.,]*(\s?(元|%))?|[A-Za-z_][A-Za-z0-9_.\-]*|[\s\S]/g) || [];
+    const width = (a) => g.measureText(a.join('')).width;
+    for (const tk of toks) {
+      if (line.length && width(line.concat([tk])) > w) {
+        let carry = [tk];
+        while (line.length > 1 && (NOHEAD.indexOf(carry[0][0]) >= 0 || '（「『“'.indexOf(line[line.length - 1]) >= 0)) carry.unshift(line.pop());
+        out.push(line.join(''));
+        line = carry; if (/^\s+$/.test(line[0])) line.shift();
+      } else line.push(tk);
+    }
+    if (line.length) out.push(line.join('')); return out;
+  }
+  function drawPNG(Lx) {
+    const R = Lx.r, D = R.D;
+    const Wd = 1080, H = 1350, X = 64, TW = 952;
+    const cv = document.createElement('canvas'); cv.width = Wd; cv.height = H;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#f4f1ea'; g.fillRect(0, 0, Wd, H);
+    g.fillStyle = '#ffffff'; g.fillRect(32, 32, Wd - 64, H - 64);
+    g.fillStyle = '#7a7268'; g.font = '22px ' + FF;
+    g.fillText(fit(g, NAME + (D.what ? ' · ' + D.what : '') + ' · 现在 ' + yuan(D.now) + ' 元', TW - 280), X, 88);
+    g.save(); g.translate(X + TW - 120, 76); g.rotate(-0.05);
+    const col = R.verdict === 'now' ? '#2c6e8a' : '#7a4b14';
+    g.strokeStyle = g.fillStyle = col; g.lineWidth = 4; g.font = 'bold 28px ' + FF;
+    const sw = Math.max(150, g.measureText(R.stamp).width + 36);
+    g.strokeRect(-sw / 2, -28, sw, 50); g.textAlign = 'center'; g.fillText(R.stamp, 0, 8); g.restore();
+    g.fillStyle = '#262320';
+    let bf = 46; g.font = 'bold ' + bf + 'px ' + FF;
+    while (bf > 26 && g.measureText(plain(bigText(R))).width > TW) { bf -= 2; g.font = 'bold ' + bf + 'px ' + FF; }
+    g.fillText(fit(g, plain(bigText(R)), TW), X, 160);
+    let y = 210;
+    g.font = '25px ' + FF;
+    wrap(g, R.summary, TW).slice(0, 4).forEach((l) => { g.fillText(l, X, y); y += 36; });
+    y += 10;
+    const ch = 400;
+    g.save(); g.translate(X, y); drawCurve(g, R, TW, ch, 19); g.restore();
+    y += ch + 30;
+    g.font = '21px ' + FF; g.fillStyle = '#262320';
+    for (const f of R.facts) { const ls = wrap(g, '· ' + f, TW); if (y + ls.length * 30 > H - 200) break; ls.forEach((l) => { g.fillText(l, X, y); y += 30; }); y += 3; }
+    y += 6;
+    g.fillStyle = '#7a4b14'; g.font = 'bold 21px ' + FF; if (y + 60 < H - 200) { g.fillText('要是我估错了', X, y + 4); y += 36; }
+    g.font = '21px ' + FF; g.fillStyle = '#262320';
+    for (const t of C.whatIfText(R)) { const ls = wrap(g, '· ' + t, TW); if (y + ls.length * 30 > H - 200) break; ls.forEach((l) => { g.fillText(l, X, y); y += 30; }); y += 3; }
+    y += 10;
+    for (const s of Lx.sg) { const ls = wrap(g, '· 改一样：' + s.text, TW); if (y + ls.length * 30 > H - 100) break; ls.forEach((l) => { g.fillText(l, X, y); y += 30; }); y += 3; }
+    g.fillStyle = '#7a7268'; g.font = '18px ' + FF;
+    ['价格是你自己估的，本页不预测任何商品的真实价格；没算利息、补贴与缺货。', '默认数据为虚构示例。'].forEach((l, i) => g.fillText(l, X, H - 74 + i * 27));
+    return Promise.resolve(cv);
+  }
+  function backup() {
+    const R = last.r, D = R.D;
+    return { app: NAME, version: 1, savedAt: stamp(), input: copy(state), result: { verdict: R.verdict, stamp: R.stamp, summary: R.summary,
+      bestMonth: R.best.m, bestNet: R.best.net / 100, planMonth: D.plan, planNet: R.plan.net / 100, cheapestMonth: R.cheap.m,
+      threshold: R.th ? { perMonth: R.th.cents / 100, month: R.th.m } : null,
+      rows: R.rows.map((r) => ({ month: r.m, price: r.price / 100, save: r.save / 100, waitCost: r.wait / 100, oldDrop: r.old / 100, net: r.net / 100 })),
+      whatIf: R.what_if.map((w) => Object.assign({ kind: w.kind, percent: w.k, bestMonth: w.best, bestNet: w.net / 100, planNet: w.planNet / 100 }, w.perMonth != null ? { perMonth: w.perMonth / 100 } : {})) } };
+  }
+
+  function init() {
+    let dt = null;
+    const later = () => { save(); clearTimeout(dt); dt = setTimeout(run, 200); };
+    KEYS.forEach((k) => { $(k).addEventListener('input', () => { state[k] = $(k).value; later(); }); });
+    $('pts').addEventListener('input', (e) => {
+      const el = e.target, box = el.closest('.pt'); if (!box || !el.dataset.k) return;
+      state.points[+box.dataset.i][el.dataset.k] = el.value; later();
+    });
+    $('pts').addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-op]'); if (!b || b.disabled) return;
+      if (state.points.length > 1) state.points.splice(+b.closest('.pt').dataset.i, 1);
+      renderPts(); run();
+    });
+    $('add').addEventListener('click', () => {
+      if (state.points.length >= C.MAX_POINTS) return;
+      const lp = state.points[state.points.length - 1] || {};
+      const m = Math.min(C.MAX_MONTH, (parseInt(lp.m, 10) || 0) + 3);
+      state.points.push({ m: String(m), price: '' });
+      renderPts(); run();
+    });
+    $('tl').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-m]'); if (!tr) return; state.plan = tr.dataset.m; $('plan').value = state.plan; run(); });
+    PRESETS.forEach((p) => {
+      const b = document.createElement('button'); b.className = 'ghost'; b.textContent = p[0];
+      b.addEventListener('click', () => { state = copy(p[1]); fill(); run(); });
+      $('presets').appendChild(b);
+    });
+    $('reset').addEventListener('click', () => { state = copy(DEFAULT); fill(); run(); });
+    $('dlCSV').addEventListener('click', () => { if (last) download(NAME + '.csv', new Blob(['\ufeff' + C.toCSV(last.r, stamp())], { type: 'text/csv;charset=utf-8' })); });
+    $('dlMD').addEventListener('click', () => { if (last) download(NAME + '.md', new Blob([C.toMD(last.r, stamp(), last.sg)], { type: 'text/markdown;charset=utf-8' })); });
+    $('dlJSON').addEventListener('click', () => { if (last) download(NAME + '-备份.json', new Blob([JSON.stringify(backup(), null, 2)], { type: 'application/json' })); });
+    $('dlPNG').addEventListener('click', () => { if (last) drawPNG(last).then((cv2) => cv2.toBlob((b) => download(NAME + '-1080x1350.png', b), 'image/png')); });
+    let rt = null; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (last) renderCurve(last.r); }, 150); });
+    state = load() || copy(DEFAULT);
+    fill(); run();
+    window.__ex = { last: () => last, state: () => state, presets: PRESETS, DEFAULT, drawPNG, backup, bigPlain: () => plain(bigText(last.r)) };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+
+  </script>
+</body>
+</html>
